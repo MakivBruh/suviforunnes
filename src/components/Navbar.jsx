@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { assets } from "../assets";
 import "./Navbar.css";
@@ -21,6 +21,41 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const exitAnimation = useRef(null);
+  const [activeSection, setActiveSection] = useState("hero");
+
+  useEffect(() => {
+    if (location.pathname !== "/") return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const sections = rows.flat().map(([id]) => document.getElementById(id)).filter(Boolean);
+      if (!sections.length) return;
+      // Follow the reading position below the fixed navbar without changing the URL.
+      const marker = Math.max(
+        (document.querySelector(".site-navbar")?.getBoundingClientRect().bottom ?? 0) + 24,
+        window.innerHeight * 0.3,
+      );
+      let current = sections[0].id;
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top <= marker) current = section.id;
+      }
+      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+        current = sections.at(-1).id;
+      }
+      setActiveSection(current);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [location.pathname]);
 
   function closeMenu(afterClose) {
     const element = dialog.current;
@@ -87,6 +122,7 @@ export default function Navbar() {
       <Link
         className={className}
         to={`/#${id}`}
+        aria-current={location.pathname === "/" && activeSection === id ? "location" : undefined}
         onClick={(event) => {
           if (
             event.button !== 0 ||
@@ -205,7 +241,7 @@ export default function Navbar() {
                   <span
                     key={id}
                     className={
-                      (location.hash || "#hero") === `#${id}` &&
+                      activeSection === id &&
                       location.pathname === "/"
                         ? "is-active"
                         : ""
